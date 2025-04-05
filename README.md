@@ -8,15 +8,15 @@
 
 Before starting, make sure you have:
 - An account on the Alice HPC cluster 
-- SSH keys set up for login (see [Alice documentation](https://pubappslu.atlassian.net/wiki/spaces/HPCWIKI/pages/37748788/Login+to+ALICE+or+SHARK+from+Linux#Making-logins-even-more-convenient-with-ssh-keys))
+- SSH keys set up for login with an `alice1` alias in your SSH config
 
 ## Overview of the Process
 
 1. Clone this repository on the HPC
-2. Prepare the micro-sam container on the HPC
-3. Run micro-sam to process your images
-4. (Optional) Use Jupyter notebooks for interactive analysis
-5. (Optional) Finetune the model on your own data
+2. Build the micro-sam container (automatically sets up folders)
+3. Use the scripts to run micro-sam on your images
+4. (Optional) Finetune the model on your own data
+5. (Optional) Use Jupyter notebooks for interactive analysis
 
 ## Getting Started
 
@@ -25,114 +25,67 @@ Before starting, make sure you have:
 First, connect to the HPC and clone this repository:
 
 ```bash
-# Connect to the HPC
+# Connect to the HPC (using the alice1 alias)
 ssh alice1
+
 # Clone the repository with all scripts
 git clone https://github.com/maartenpaul/micro-sam-hpc.git
 cd micro-sam-hpc
 ```
 
-## 2. Running micro-sam on the HPC
+### 2. Build the micro-sam Container
 
-### Single Image Processing
-
-Create a file named `run_microsam.sh` with the following content:
-
-Make the following changes to the script:
-- Change `/path/to/input/image.tif` to your actual input image path
-- Change `/path/to/output/segmented.tif` to where you want to save the result
-
-Then run the script:
+Build the container using the included script:
 
 ```bash
-chmod +x run_microsam.sh  # Make the script executable
-sbatch run_microsam.sh    # Submit the job
+# Make script executable
+chmod +x scripts/build_microsam.sh
+# Submit the build job
+sbatch scripts/build_microsam.sh
 ```
 
-### Processing Multiple Images
+This script will:
+- Create a folder structure in `/data1/<username>/micro_sam` with subfolders for:
+  - `input`: Place your images here for processing
+  - `output`: Results will be saved here
+  - `models`: Pre-trained and finetuned models are stored here
+- Build the Singularity container with all required software
 
-If you have many images to process, create a file named `batch_microsam.sh`:
-
-Change the `INPUT_DIR` to the folder with your images, then run:
+You can check if the job is complete with:
 
 ```bash
-chmod +x batch_microsam.sh
-sbatch batch_microsam.sh
+squeue -u $USER     # Check if job is still running
+cat build-microsam-*.out  # View the output of the job
 ```
 
-## 3. Using Jupyter Notebooks with micro-sam
+### 3. Run micro-sam on Your Images
 
-For interactive analysis, you can use Jupyter notebooks with the micro-sam container. The simplest approach is to use Visual Studio Code (VS Code) with the Remote SSH extension.
-
-### Setup VS Code with Remote SSH for Jupyter
-
-To use VS Code for interactive work with Jupyter notebooks on the HPC:
-
-1. Install VS Code on your local computer: [Download VS Code](https://code.visualstudio.com/)
-
-2. Install the "Remote - SSH" extension in VS Code
-
-3. Follow the instructions in the VS Code documentation to create a dedicated SSH config file and set it up for the Alice HPC: [Alice VS Code Setup](https://pubappslu.atlassian.net/wiki/spaces/HPCWIKI/pages/82640897/Setting+up+VSCode+to+work+on+the+cluster)
-
-4. Start a Jupyter server on the HPC:
-   ```bash
-   sbatch scripts/start_jupyter.sh
-   ```
-
-5. Check the job output for the node name and update your SSH config accordingly:
-   ```bash
-   cat jupyter-server-*.out
-   ```
-
-6. Connect to the HPC with VS Code using the Remote SSH extension and open Jupyter notebooks
-
-### Using the Official micro-sam Notebooks
-
-Once connected, you can use the official micro-sam example notebooks to explore the tool's capabilities:
-
-1. Clone the micro-sam repository on the HPC:
-   ```bash
-   git clone https://github.com/computational-cell-analytics/micro-sam.git
-   cd micro-sam/notebooks
-   ```
-
-2. Open the notebooks in VS Code and explore the examples, particularly:
-   - `basic_usage.ipynb` for an introduction to micro-sam
-   - `sam_finetuning.ipynb` for finetuning on your own data
-
-The official [sam_finetuning.ipynb](https://github.com/computational-cell-analytics/micro-sam/blob/master/notebooks/sam_finetuning.ipynb) notebook provides detailed instructions on how to finetune SAM for your specific microscopy data.
-
-## Troubleshooting
-
-If you encounter any issues or have questions about using micro-sam on the HPC, please reach out to [maartenpaul on GitHub](https://github.com/maartenpaul).
-
-Common issues and quick checks:
-- Make sure your job is requesting GPU resources (`--gres=gpu:1`)
-- Verify your image files are in the correct format (TIF is recommended)
-- Check your job output files for error messages
-
-## Exploring micro-sam Features
-
-### Using the Official micro-sam Notebooks
-
-To explore the full capabilities of micro-sam, you can use the official example notebooks:
+#### Process a Single Image
 
 ```bash
-# Clone the micro-sam repository
-git clone https://github.com/computational-cell-analytics/micro-sam.git
-cd micro-sam/notebooks
+# Run micro-sam on a single image
+sbatch scripts/run_microsam.sh input/your_image.tif output/segmented_image.tif
 ```
 
-Key notebooks to explore:
-- `basic_usage.ipynb` - Introduction to micro-sam's basic functionality
-- `sam_finetuning.ipynb` - Detailed guide on finetuning SAM for your data
+#### Process Multiple Images
 
-### Data Preparation for Finetuning
+```bash
+# Process all TIF files in the input directory
+sbatch scripts/batch_microsam.sh
+```
 
-When finetuning SAM, organize your training data in this structure:
+All images in the `/data1/<username>/micro_sam/input` directory will be processed and results saved to the `/data1/<username>/micro_sam/output` directory.
+
+## Finetuning SAM for Your Data
+
+Finetuning allows you to adapt the model to your specific microscopy data for improved segmentation.
+
+### 1. Prepare Your Training Data
+
+Organize your training data in this structure:
 
 ```
-training_data/
+/data1/<username>/micro_sam/training_data/
 ├── images/
 │   ├── image1.tif
 │   ├── image2.tif
@@ -143,20 +96,47 @@ training_data/
     └── ...
 ```
 
-The [sam_finetuning.ipynb](https://github.com/computational-cell-analytics/micro-sam/blob/master/notebooks/sam_finetuning.ipynb) notebook provides detailed guidance on preparing your data and the finetuning process.
+### 2. Run the Finetuning Script
+
+```bash
+# Finetune the model (uses data in the training_data folder)
+sbatch scripts/finetune_microsam.sh
+```
+
+### 3. Use Your Finetuned Model
+
+```bash
+# Run segmentation with your finetuned model
+sbatch scripts/run_microsam_finetuned.sh input/your_image.tif output/segmented_image.tif
+```
+
+## Using Jupyter Notebooks (Optional)
+
+For interactive analysis, you can use Jupyter notebooks with VS Code:
+
+1. Install VS Code and the "Remote - SSH" extension on your local computer
+2. Set up VS Code for the Alice HPC as described in the [Alice documentation](https://pubappslu.atlassian.net/wiki/spaces/HPCWIKI/pages/82640897/Setting+up+VSCode+to+work+on+the+cluster)
+3. Start a Jupyter server:
+   ```bash
+   sbatch scripts/start_jupyter.sh
+   ```
+4. Follow the instructions in the job output to connect
+
+The official micro-sam example notebooks are excellent resources:
+- `basic_usage.ipynb` - Introduction to micro-sam
+- `sam_finetuning.ipynb` - Detailed guide on finetuning
 
 ## Troubleshooting
 
-If you encounter any issues or have questions about using micro-sam on the HPC, please reach out to [maartenpaul on GitHub](https://github.com/maartenpaul).
+If you encounter any issues, please contact [maartenpaul on GitHub](https://github.com/maartenpaul).
 
-Common issues and quick checks:
-- Make sure your job is requesting GPU resources (`--gres=gpu:1`)
-- Verify your image files are in the correct format (TIF is recommended)
+Common checks:
+- Verify your image files are in TIF format
 - Check your job output files for error messages
+- Make sure you're using the correct paths
 
 ## Additional Resources
 
 - [micro-sam GitHub repository](https://github.com/computational-cell-analytics/micro-sam)
 - [Segment Anything Model (SAM) paper](https://segment-anything.com)
 - [Alice HPC documentation](https://pubappslu.atlassian.net/wiki/spaces/HPCWIKI)
-- [VS Code Remote Development](https://code.visualstudio.com/docs/remote/ssh)
