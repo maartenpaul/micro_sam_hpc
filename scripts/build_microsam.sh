@@ -20,7 +20,7 @@ echo "Created directory structure at $MICROSAM_DIR"
 
 # Pull/build the container from Docker Hub
 echo "Building micro-sam container..."
-singularity build $MICROSAM_DIR/micro_sam.sif docker://computationalcellanalytics/microsam:latest
+singularity build $MICROSAM_DIR/micro_sam.sif docker://maartenpaul/microsam_gpu:latest
 
 if [ $? -eq 0 ]; then
     echo "Container successfully built at $MICROSAM_DIR/micro_sam.sif"
