@@ -3,8 +3,8 @@
 #SBATCH --output=build-microsam-%j.out
 #SBATCH --error=build-microsam-%j.err
 #SBATCH --time=2:00:00
-#SBATCH --mem=8G
-#SBATCH --partition=testing
+#SBATCH --mem=32G
+#SBATCH --partition=cpu-short
 
 # Set up temporary directories for Singularity
 export APPTAINER_TMPDIR=$SCRATCH/.apptainer-tmp
